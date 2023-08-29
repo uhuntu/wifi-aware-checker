@@ -1,11 +1,18 @@
 package live.ditto.wifiawarechecker
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.content.Intent.ACTION_VIEW
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.net.wifi.aware.AttachCallback
+import android.net.wifi.aware.WifiAwareManager
+import android.net.wifi.aware.WifiAwareSession
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
@@ -31,7 +38,6 @@ class MainActivity : AppCompatActivity() {
         val versionRelease = Build.VERSION.RELEASE
         androidVersionTextView.text = "Android Version: $version | Version Release $versionRelease"
 
-
         val learnMoreButton: Button = findViewById(R.id.learn_more_button);
         learnMoreButton.setOnClickListener {
             val uri: Uri = Uri.parse("https://developer.android.com/guide/topics/connectivity/wifi-aware")
@@ -43,17 +49,50 @@ class MainActivity : AppCompatActivity() {
         val hasSystemFeature = packageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE)
         if (hasSystemFeature) {
             hasFeatureTextView.text = "WiFi Aware Available"
+            Log.d("WiFiAwareChecker", "WiFi Aware Available")
             hasFeatureTextView.setTextColor(ContextCompat.getColor(this,
                 R.color.colorAvailable
             ));
             iconImageView.setImageDrawable(getDrawable(R.drawable.ic_wifi_yes))
         } else {
             hasFeatureTextView.text = "WiFi Aware Unavailable"
+            Log.d("WiFiAwareChecker", "WiFi Aware Unavailable")
             hasFeatureTextView.setTextColor(ContextCompat.getColor(this,
                 R.color.colorUnavailable
             ));
             iconImageView.setImageDrawable(getDrawable(R.drawable.ic_wifi_no))
         }
+
+        val wifiAwareManager = getSystemService(Context.WIFI_AWARE_SERVICE) as WifiAwareManager?
+        val filter = IntentFilter(WifiAwareManager.ACTION_WIFI_AWARE_STATE_CHANGED)
+        val myReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                // discard current sessions
+                if (wifiAwareManager?.isAvailable == true) {
+                    Log.d("WiFiAwareChecker", "isAvailable == true")
+                } else {
+                    Log.d("WiFiAwareChecker", "isAvailable == false")
+                }
+            }
+        }
+        registerReceiver(myReceiver, filter)
+
+        val attachCallback = object : AttachCallback() {
+            override fun onAttached(session: WifiAwareSession?) {
+                Log.d("WiFiAwareChecker", "onAttached")
+                super.onAttached(session)
+            }
+            override fun onAwareSessionTerminated() {
+                Log.d("WiFiAwareChecker", "onAwareSessionTerminated")
+                super.onAwareSessionTerminated()
+            }
+            override fun onAttachFailed() {
+                Log.d("WiFiAwareChecker", "onAttachFailed")
+                super.onAttachFailed()
+            }
+        }
+
+        wifiAwareManager?.attach(attachCallback, null)
     }
 
     private fun getDeviceName(): String? {
